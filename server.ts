@@ -20,6 +20,14 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
+// Explicit direct download route with attachment header
+app.get('/download-zip', (_req, res) => {
+  const zipPath = path.resolve(process.cwd(), 'public/project-update.zip');
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="project-update.zip"');
+  res.download(zipPath, 'project-update.zip');
+});
+
 // Gemini Chat Endpoint
 app.post('/api/gemini/chat', async (req, res) => {
   try {
