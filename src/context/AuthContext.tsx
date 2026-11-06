@@ -171,38 +171,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(STORAGE_KEYS.INVITATIONS, JSON.stringify(invitations));
   }, [invitations]);
 
-  // Login handler
-  const login = (email: string, _password?: string, overrideRole?: UserRole): boolean => {
-    // Check if user exists in team
-    let user = teamMembers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  // Login handler with strict security
+  const login = (email: string, password?: string): boolean => {
+    const trimmedEmail = email.trim().toLowerCase();
+    
+    // Check if user exists in authorized team/client list
+    let user = teamMembers.find(u => u.email.toLowerCase() === trimmedEmail);
 
+    // If it's the admin email, allow login
+    if (trimmedEmail === 'haseeb07malik07@gmail.com') {
+      if (!user) {
+        user = {
+          id: 'usr-admin-1',
+          name: 'Haseeb Malik',
+          email: 'haseeb07malik07@gmail.com',
+          role: 'admin',
+          roleLabel: 'Agency Owner (Full Admin)',
+          accessibleAccountIds: 'all',
+          avatarInitials: 'HM',
+          createdAt: '2026-01-01'
+        };
+        setTeamMembers(prev => [user!, ...prev]);
+      }
+      setCurrentUser(user);
+      return true;
+    }
+
+    // For any other email, they MUST be an authorized team member or have an accepted invite
     if (!user) {
-      // Create new user session if not in list
-      const role = overrideRole || 'editor';
-      const roleLabel = role === 'admin' 
-        ? 'Agency Owner (Admin)' 
-        : role === 'editor' 
-        ? 'VA Operations (Editor)' 
-        : 'Client (Viewer)';
-      
-      const initials = email.slice(0, 2).toUpperCase();
-      user = {
-        id: `usr-${Date.now()}`,
-        name: email.split('@')[0],
-        email: email,
-        role: role,
-        roleLabel: roleLabel,
-        accessibleAccountIds: 'all',
-        avatarInitials: initials,
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      setTeamMembers(prev => [...prev, user!]);
-    } else if (overrideRole && user.role !== overrideRole) {
-      user = {
-        ...user,
-        role: overrideRole,
-        roleLabel: overrideRole === 'admin' ? 'Agency Owner (Admin)' : overrideRole === 'editor' ? 'VA Operations (Editor)' : 'Client (Viewer)'
-      };
+      // Check if they have an accepted invitation
+      const invite = invitations.find(i => i.email.toLowerCase() === trimmedEmail && i.status === 'ACCEPTED');
+      if (invite) {
+        user = {
+          id: `usr-${Date.now()}`,
+          name: invite.email.split('@')[0],
+          email: invite.email,
+          role: invite.role,
+          roleLabel: invite.roleLabel,
+          accessibleAccountIds: invite.assignedAccounts,
+          avatarInitials: invite.email.slice(0, 2).toUpperCase(),
+          createdAt: new Date().toISOString().split('T')[0]
+        };
+        setTeamMembers(prev => [...prev, user!]);
+        setCurrentUser(user);
+        return true;
+      }
+      // Not authorized!
+      return false;
     }
 
     setCurrentUser(user);
