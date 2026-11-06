@@ -134,13 +134,19 @@ export const AiAnalystPage: React.FC = () => {
         body: JSON.stringify({ prompt: text, context: contextPayload })
       });
 
-      if (!res.ok && res.status === 404) {
+      let contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
         // Fallback for Netlify serverless function direct path
         res = await fetch('/.netlify/functions/gemini', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: text, context: contextPayload })
         });
+        contentType = res.headers.get('content-type') || '';
+      }
+
+      if (!contentType.includes('application/json')) {
+        throw new Error('Netlify functions not yet compiled on host. Make sure public/_redirects is committed.');
       }
 
       const data = await res.json();
