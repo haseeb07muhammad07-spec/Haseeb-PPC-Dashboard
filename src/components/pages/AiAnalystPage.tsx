@@ -12,7 +12,8 @@ import {
   Zap,
   Info,
   ExternalLink,
-  KeyRound
+  KeyRound,
+  Download
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -127,11 +128,13 @@ export const AiAnalystPage: React.FC = () => {
       }))
     };
 
+    const chatHistory = messages.slice(-6).map(m => ({ sender: m.sender, text: m.text }));
+
     try {
       let res = await fetch('/api/gemini/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text, context: contextPayload })
+        body: JSON.stringify({ prompt: text, context: contextPayload, chatHistory })
       });
 
       let contentType = res.headers.get('content-type') || '';
@@ -140,7 +143,7 @@ export const AiAnalystPage: React.FC = () => {
         res = await fetch('/.netlify/functions/gemini', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: text, context: contextPayload })
+          body: JSON.stringify({ prompt: text, context: contextPayload, chatHistory })
         });
         contentType = res.headers.get('content-type') || '';
       }
@@ -179,10 +182,13 @@ export const AiAnalystPage: React.FC = () => {
       setMessages(prev => [...prev, aiMsg]);
     } catch (err: any) {
       console.error('Gemini API communication error:', err);
+      const isHtmlError = (err?.message || '').includes('<') || (err?.message || '').includes('JSON');
       const aiMsg: ChatMessage = {
         id: `msg-${Date.now()}`,
         sender: 'ai',
-        text: `⚠️ **Server Connection Notice:**\n\nCould not reach \`/api/gemini/chat\`.\n\n*Netlify Users:* Make sure you added \`GEMINI_API_KEY\` in your Netlify site settings (Site configuration > Environment variables) and re-deployed.\n\n*Error details:* ${err.message || 'Network error'}`,
+        text: isHtmlError 
+          ? `⚠️ **Netlify Deployment Notice:**\n\nNetlify par \`/api/gemini/chat\` serverless function abhi route nahi ho rahi (purani cache ya missing _redirects file ki wajah se).\n\n**Isko solve karne ka asaan tareeqa:**\n1. GitHub repo mein latest code push karein (khas tor par \`public/_redirects\` aur \`netlify/\` folder).\n2. Netlify dashboard mein **Site configuration > Environment variables** mein check karein ke \`GEMINI_API_KEY\` mojood ho.\n3. Netlify mein **Deploys > Trigger deploy > Clear cache and deploy site** par click karein!\n\n*(Note: AI Studio preview mein real Google Gemini 100% live aur active hai!)*`
+          : `⚠️ **Server Connection Notice:**\n\nCould not reach \`/api/gemini/chat\`.\n\n*Error details:* ${err.message || 'Network error'}`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, aiMsg]);
@@ -234,6 +240,14 @@ export const AiAnalystPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <a
+            href="/Haseeb-PPC-Dashboard-Latest.zip"
+            download="Haseeb-PPC-Dashboard-Latest.zip"
+            className="px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Download Update for GitHub</span>
+          </a>
           <button
             onClick={() => setShowKeyGuide(!showKeyGuide)}
             className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"

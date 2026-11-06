@@ -31,7 +31,7 @@ app.get('/download-zip', (_req, res) => {
 // Gemini Chat Endpoint
 app.post('/api/gemini/chat', async (req, res) => {
   try {
-    const { prompt, context } = req.body;
+    const { prompt, context, chatHistory } = req.body;
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ error: 'Prompt is required' });
     }
@@ -76,20 +76,31 @@ app.post('/api/gemini/chat', async (req, res) => {
       }
     }
 
-    const systemInstruction = `You are Haseeb Malik's elite Amazon Seller Central & PPC AI Analyst and Operations Specialist.
-You advise Amazon brand owners (like Thomas Mild, Haas, Benoit, Ruben) and virtual assistant specialists.
-Provide high-impact, direct, quantitative, actionable recommendations for Amazon sellers and VA team members.
-When analyzing PPC: focus on bid reductions, negative keyword harvesting, placement modifier optimization, and ACOS control.
-When analyzing Inventory: focus on FBA runway, inbound shipment lead times, and avoiding out-of-stock rank penalties.
-When drafting client updates: format as crisp, professional executive updates ready for Slack, WhatsApp, or Email.
-Always format with clean markdown: bolding, bullet points, and code tags (\`ASIN\`, \`Campaign\`).`;
+    let historyStr = '';
+    if (chatHistory && Array.isArray(chatHistory) && chatHistory.length > 0) {
+      historyStr = chatHistory.slice(-6).map((m: any) => `${m.sender === 'user' ? 'User' : 'Gemini'}: ${m.text}`).join('\n\n');
+    }
 
-    const fullPrompt = `${contextStr ? `[CURRENT REAL-TIME STORE DATA]\n${contextStr}\n` : ''}[USER QUESTION / DIRECTIVE]\n${prompt}`;
+    const systemInstruction = `You are Haseeb Malik's authentic, high-intelligence Amazon Operations & PPC AI Assistant powered by Google Gemini.
+You advise Haseeb Malik, agency brand managers, and virtual assistant specialists on Amazon Seller Central, PPC advertising (Sponsored Products, Brands, Display, Video), FBA logistics, inventory forecasting, listing optimization, and client reporting.
+
+CRITICAL LANGUAGE & COMMUNICATION INSTRUCTION (MUST FOLLOW):
+- The user (Haseeb Malik) may write to you in ANY language: Urdu script (اردو), Roman Urdu, English, or any mixed language.
+- You must understand their input perfectly regardless of language.
+- ALWAYS respond in natural, friendly, professional Roman Urdu (conversational Urdu written in English alphabets) by default, unless the user specifically asks you to write in pure Urdu script (اردو) or English.
+- Address Haseeb respectfully and keep the tone warm, expert, and practical.
+
+AUTHENTIC GEMINI CAPABILITIES:
+- You have full conversational intelligence. You can answer general questions, chat warmly, perform math, write scripts, explain strategies, and analyze store performance.
+- When answering questions about Amazon accounts, refer directly to the live account data provided in context.
+- Format all responses with clean markdown: bold text, bullet points, and code blocks where helpful.`;
+
+    const fullPrompt = `${contextStr ? `[CURRENT REAL-TIME STORE DATA]\n${contextStr}\n` : ''}${historyStr ? `[PREVIOUS CONVERSATION]\n${historyStr}\n` : ''}[USER QUESTION / DIRECTIVE]\n${prompt}`;
 
     let outputText = '';
     let usedModel = 'gemini-3.8-flash';
 
-    const modelsToTry = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    const modelsToTry = ['gemini-3.1-flash-lite', 'gemini-3.8-flash', 'gemini-flash-latest'];
     let lastError: any = null;
 
     for (const model of modelsToTry) {
