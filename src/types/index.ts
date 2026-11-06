@@ -264,3 +264,17 @@ export interface TeamInvitation {
   emailSentAt?: string;
   emailMethod?: 'gmail' | 'mailto' | 'copied';
 }
+
+export interface AccessRequest {
+  id: string;
+  name: string;
+  email: string;
+  roleRequested?: UserRole;
+  message?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  requestedAt: string;
+  assignedRole?: UserRole;
+  assignedAccounts?: string[] | 'all';
+  decisionAt?: string;
+}
+

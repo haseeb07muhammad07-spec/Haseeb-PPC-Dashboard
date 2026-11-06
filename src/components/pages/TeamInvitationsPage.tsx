@@ -11,14 +11,15 @@ import {
   XCircle,
   Mail,
   Send,
-  ExternalLink,
   MessageSquare,
-  Sparkles,
-  RefreshCw
+  Clock,
+  UserCheck,
+  UserX,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
-import { UserRole, TeamInvitation } from '../../types';
+import { UserRole, TeamInvitation, AccessRequest } from '../../types';
 import { Modal } from '../common/Modal';
 
 export const TeamInvitationsPage: React.FC = () => {
@@ -26,15 +27,20 @@ export const TeamInvitationsPage: React.FC = () => {
     currentUser, 
     teamMembers, 
     invitations, 
+    accessRequests,
     createInvitation, 
     revokeInvitation, 
     markInviteEmailSent,
     deleteTeamMember,
+    approveAccessRequest,
+    rejectAccessRequest,
+    deleteAccessRequest,
     hasPermission 
   } = useAuth();
   
   const { accounts } = useApp();
 
+  // Invite creation modal state
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<UserRole>('viewer');
@@ -44,6 +50,14 @@ export const TeamInvitationsPage: React.FC = () => {
   const [lastCreatedInvite, setLastCreatedInvite] = useState<TeamInvitation | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [emailStatusMessage, setEmailStatusMessage] = useState<string | null>(null);
+
+  // Approval modal state
+  const [requestToApprove, setRequestToApprove] = useState<AccessRequest | null>(null);
+  const [approvalRole, setApprovalRole] = useState<UserRole>('viewer');
+  const [approvalAccounts, setApprovalAccounts] = useState<string>('all');
+
+  const pendingRequests = accessRequests.filter(r => r.status === 'PENDING');
+  const processedRequests = accessRequests.filter(r => r.status !== 'PENDING');
 
   // Helper to build email subject and body
   const buildEmailContent = (inv: TeamInvitation) => {
@@ -62,9 +76,7 @@ Account / Store: ${storeLabel}
 Permission Level: ${inv.roleLabel}
 Access Link: ${inv.inviteLink}
 
-Click the link above to log in directly and review your store performance metrics, PPC ad efficiency, and operational activity logs.
-
-This invitation link is secure and valid for 14 days.
+Click the link above to log in directly and review your store performance metrics, PPC ad efficiency, and operational activity logs. Note: This private link is locked to your email (${inv.email}).
 
 Best regards,
 ${senderName}
@@ -120,6 +132,18 @@ Amazon Operations Team`;
     setInviteEmail('');
   };
 
+  const handleConfirmApproval = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!requestToApprove) return;
+
+    const accountsParam = approvalAccounts === 'all' ? 'all' : [approvalAccounts];
+    approveAccessRequest(requestToApprove.id, approvalRole, accountsParam);
+    
+    setEmailStatusMessage(`Access approved for ${requestToApprove.name} (${requestToApprove.email}) as ${approvalRole.toUpperCase()}!`);
+    setTimeout(() => setEmailStatusMessage(null), 4000);
+    setRequestToApprove(null);
+  };
+
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -136,11 +160,11 @@ Amazon Operations Team`;
           <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
             <span>Team & Client Access Permissions</span>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
-              Role-Based Access Control (RBAC)
+              Private Invite & Approval Security
             </span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Directly send email invitations to clients or VA specialists with 1-click Gmail and Mail client integration.
+            Only emails invited or directly approved by Haseeb Malik can access this portal.
           </p>
         </div>
 
@@ -158,13 +182,104 @@ Amazon Operations Team`;
         )}
       </div>
 
-      {/* Floating Status Notification if Email sent */}
+      {/* Floating Status Notification */}
       {emailStatusMessage && (
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2 shadow-xs transition-all">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{emailStatusMessage}</span>
         </div>
       )}
+
+      {/* SECTION 1: Pending Access Requests Queue (Crucial Feature for Uninvited Access Requests) */}
+      <div className="p-6 rounded-2xl glass-card space-y-4 card-popup border-2 border-amber-200/60 bg-gradient-to-r from-amber-50/40 via-white to-violet-50/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                  Access Requests Pending Your Approval
+                </h3>
+                <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                  pendingRequests.length > 0
+                    ? 'bg-amber-500 text-white animate-pulse'
+                    : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {pendingRequests.length} Pending
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Users who tried to sign in or requested access. Only you (Haseeb) can approve them.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {pendingRequests.length === 0 ? (
+          <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200/80 text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>Koi pending access request nahi hai. Sabhi unauthorized log bahar rahengay jab tak request na bhejein.</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-amber-200/80 text-slate-400 font-semibold text-[11px] uppercase tracking-wider">
+                  <th className="pb-3 pl-2">Requester Name</th>
+                  <th className="pb-3">Email Address</th>
+                  <th className="pb-3">Client Note / Message</th>
+                  <th className="pb-3">Requested At</th>
+                  <th className="pb-3 text-right pr-2">Your Decision</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100 font-sans">
+                {pendingRequests.map(req => (
+                  <tr key={req.id} className="hover:bg-amber-50/50 transition-colors">
+                    <td className="py-3 pl-2 font-bold text-slate-900">
+                      {req.name}
+                    </td>
+                    <td className="py-3 font-mono text-violet-700 font-semibold">
+                      {req.email}
+                    </td>
+                    <td className="py-3 text-slate-600 max-w-xs truncate">
+                      {req.message || <span className="text-slate-400 italic">No note provided</span>}
+                    </td>
+                    <td className="py-3 text-[11px] text-slate-500 font-mono">
+                      {req.requestedAt}
+                    </td>
+                    <td className="py-3 text-right pr-2">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => {
+                            setRequestToApprove(req);
+                            setApprovalRole('viewer');
+                            setApprovalAccounts('all');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer card-popup"
+                        >
+                          <UserCheck className="w-3.5 h-3.5" />
+                          <span>Approve & Assign</span>
+                        </button>
+
+                        <button
+                          onClick={() => rejectAccessRequest(req.id)}
+                          className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1 transition-all cursor-pointer"
+                          title="Decline request"
+                        >
+                          <UserX className="w-3.5 h-3.5" />
+                          <span>Decline</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Permission Tier Breakdown Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -177,7 +292,7 @@ Amazon Operations Team`;
           </div>
           <h3 className="font-bold text-slate-900 text-xs">Full Control Access</h3>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Can add/delete Amazon client accounts, send invitation emails, adjust PPC bids, edit goals, and manage settings.
+            Haseeb Malik account. Can approve requests, add/delete client accounts, send invites, and manage settings.
           </p>
         </div>
 
@@ -203,7 +318,7 @@ Amazon Operations Team`;
           </div>
           <h3 className="font-bold text-slate-900 text-xs">Read-Only Oversight</h3>
           <p className="text-[11px] text-slate-500 leading-relaxed">
-            Can view Overview metrics, sales charts, reports, and activity logs for their store. Cannot edit bids or modify data.
+            Can view Overview metrics, sales charts, reports, and activity logs for their store only. Cannot edit bids or modify data.
           </p>
         </div>
       </div>
@@ -216,7 +331,7 @@ Amazon Operations Team`;
               Invitations & Email Dispatch Status ({invitations.length})
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Send invitations directly to client inboxes via Gmail or your mail app with 1 click.
+              Each invitation link is strictly locked to the recipient's email address.
             </p>
           </div>
         </div>
@@ -344,7 +459,7 @@ Amazon Operations Team`;
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-              Active Authorized Team Members ({teamMembers.length})
+              Active Authorized Team Members & Clients ({teamMembers.length})
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
               Users currently permitted to log in and access the dashboard.
@@ -435,7 +550,101 @@ Amazon Operations Team`;
         </div>
       </div>
 
-      {/* Invite Member & Direct Send Email Modal */}
+      {/* MODAL 1: Approve Access Request Modal */}
+      {requestToApprove && (
+        <Modal
+          isOpen={!!requestToApprove}
+          onClose={() => setRequestToApprove(null)}
+          title="Approve User Access Request"
+          subtitle={`Assign permissions and storefront access for ${requestToApprove.name}.`}
+          maxWidth="md"
+        >
+          <form onSubmit={handleConfirmApproval} className="space-y-4 text-xs">
+            <div className="p-3 rounded-xl bg-violet-50 border border-violet-200 space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700 block">
+                Requester Details
+              </span>
+              <p className="font-bold text-slate-900 text-sm">{requestToApprove.name}</p>
+              <p className="font-mono text-violet-800">{requestToApprove.email}</p>
+              {requestToApprove.message && (
+                <p className="text-[11px] text-slate-600 mt-1 italic">
+                  "{requestToApprove.message}"
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Select Permission Role <span className="text-violet-600">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setApprovalRole('viewer')}
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                    approvalRole === 'viewer'
+                      ? 'bg-purple-50 border-purple-400 text-purple-900 ring-2 ring-purple-500/20'
+                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}
+                >
+                  <span className="font-bold block text-xs">Viewer (Client)</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Read-only oversight</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setApprovalRole('editor')}
+                  className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                    approvalRole === 'editor'
+                      ? 'bg-blue-50 border-blue-400 text-blue-900 ring-2 ring-blue-500/20'
+                      : 'bg-slate-50 border-slate-200 text-slate-600'
+                  }`}
+                >
+                  <span className="font-bold block text-xs">Editor (VA Specialist)</span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Can edit bids & logs</span>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Storefront Access Scope
+              </label>
+              <select
+                value={approvalAccounts}
+                onChange={(e) => setApprovalAccounts(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 focus:outline-none focus:border-violet-500"
+              >
+                <option value="all">All Store Accounts (Global Agency Scope)</option>
+                {accounts.map(a => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.marketplace})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setRequestToApprove(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-md shadow-emerald-500/20 card-popup flex items-center gap-1.5"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Confirm & Grant Access</span>
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* MODAL 2: Invite Member & Direct Send Email Modal */}
       {isInviteModalOpen && (
         <Modal
           isOpen={isInviteModalOpen}
@@ -509,7 +718,7 @@ Amazon Operations Team`;
               {/* Direct Link Box */}
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
                 <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
-                  Direct Login & Invite Link:
+                  Direct Login & Invite Link (Email-Locked):
                 </span>
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-[11px] text-violet-700 font-bold truncate select-all">

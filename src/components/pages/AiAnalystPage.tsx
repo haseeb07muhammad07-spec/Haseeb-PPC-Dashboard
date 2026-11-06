@@ -9,7 +9,10 @@ import {
   Package, 
   Copy, 
   Check, 
-  Zap 
+  Zap,
+  Info,
+  ExternalLink,
+  KeyRound
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -36,6 +39,7 @@ export const AiAnalystPage: React.FC = () => {
   const [inputPrompt, setInputPrompt] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showKeyGuide, setShowKeyGuide] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currency = currentAccount?.currency || '$';
@@ -51,7 +55,7 @@ export const AiAnalystPage: React.FC = () => {
   const initialGreeting: ChatMessage = {
     id: 'msg-init',
     sender: 'ai',
-    text: `Hello! I am your Amazon Operations & PPC AI Analyst (Gemini Engine Ready). I am currently analyzing **${currentAccount ? currentAccount.name : 'All Accounts'}**.\n\nCurrent snapshot:\n- **Ad Spend:** ${currency}${totalAdSpend.toLocaleString()} | **Ad Sales:** ${currency}${totalAdSales.toLocaleString()}\n- **ACOS:** ${currentAcos}% (Target: ≤ ${targetAcos}%)\n- **Stock Alerts:** ${lowStockItems.length} SKUs requiring attention\n- **PPC Campaigns Above Target:** ${bleederCampaigns.length} campaigns\n\nHow can I assist your operations today? Choose a quick workflow below or ask any tactical question.`,
+    text: `Hello! I am your live **Amazon Operations & PPC AI Analyst**, connected with **Google Gemini 3.8 Flash**.\n\nI am currently analyzing **${currentAccount ? currentAccount.name : 'All Accounts'}**.\n\n📊 **Live Account Snapshot:**\n- **Ad Spend:** ${currency}${totalAdSpend.toLocaleString()} | **Ad Sales:** ${currency}${totalAdSales.toLocaleString()}\n- **ACOS:** ${currentAcos}% (Target: ≤ ${targetAcos}%)\n- **Stock Alerts:** ${lowStockItems.length} SKUs requiring attention\n- **PPC Bleeders Above Target:** ${bleederCampaigns.length} campaigns\n\nAap mujh se PPC bids, negative keywords, FBA stockout risks, ya client Slack updates ke baray mein koi bhi tactical question pooch saktay hain!`,
     timestamp: 'Just now'
   };
 
@@ -64,12 +68,12 @@ export const AiAnalystPage: React.FC = () => {
   const quickPrompts = [
     {
       title: 'Audit Bleeder Campaigns & Recommend Bids',
-      prompt: `Audit all PPC campaigns for ${currentAccount ? currentAccount.name : 'current accounts'} that are currently exceeding our target ACOS of ${targetAcos}%. Recommend exact percentage bid reductions.`,
+      prompt: `Audit all PPC campaigns for ${currentAccount ? currentAccount.name : 'current accounts'} that are currently exceeding our target ACOS of ${targetAcos}%. Recommend exact percentage bid reductions and negative keywords.`,
       icon: Target
     },
     {
       title: 'Analyze FBA Stockout Risk & Restock Priority',
-      prompt: `Review our FBA inventory runway. Which ASINs are at risk of stocking out before end of month and what quantities should we manufacture/ship?`,
+      prompt: `Review our FBA inventory runway. Which ASINs are at risk of stocking out before end of month and what quantities should we manufacture or ship?`,
       icon: Package
     },
     {
@@ -84,9 +88,9 @@ export const AiAnalystPage: React.FC = () => {
     }
   ];
 
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const text = textToSend || inputPrompt;
-    if (!text.trim()) return;
+    if (!text.trim() || isTyping) return;
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -99,30 +103,63 @@ export const AiAnalystPage: React.FC = () => {
     setInputPrompt('');
     setIsTyping(true);
 
-    // Grounded operational response
-    setTimeout(() => {
-      let aiResponse = '';
-      let suggestedAction: ChatMessage['suggestedAction'];
+    const contextPayload = {
+      accountName: currentAccount ? currentAccount.name : 'All Accounts Rollup',
+      marketplace: currentAccount ? currentAccount.marketplace : 'Amazon EU',
+      currency,
+      totalSales,
+      totalAdSpend,
+      totalAdSales,
+      currentAcos,
+      targetAcos,
+      lowStockItemsCount: lowStockItems.length,
+      bleederCampaignsCount: bleederCampaigns.length,
+      worstCampaigns: bleederCampaigns.slice(0, 4).map(c => ({
+        name: c.name,
+        acos: c.acos,
+        spend: c.spend,
+        targetAcos: c.targetAcos
+      })),
+      criticalInventory: lowStockItems.slice(0, 4).map(i => ({
+        asin: i.asin,
+        sku: i.sku,
+        daysOfSupply: i.daysOfSupply
+      }))
+    };
 
+    try {
+      let res = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: text, context: contextPayload })
+      });
+
+      if (!res.ok && res.status === 404) {
+        // Fallback for Netlify serverless function direct path
+        res = await fetch('/.netlify/functions/gemini', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: text, context: contextPayload })
+        });
+      }
+
+      const data = await res.json();
+      const aiResponse = data.text || 'Gemini engine could not generate a response.';
+
+      let suggestedAction: ChatMessage['suggestedAction'];
       const lower = text.toLowerCase();
-      if (lower.includes('audit') || lower.includes('bleeder') || lower.includes('acos') || lower.includes('bid')) {
+      if (lower.includes('bid') || lower.includes('bleeder') || lower.includes('acos')) {
         const worstCamp = bleederCampaigns[0] || filteredCampaigns[0];
-        aiResponse = `### 🎯 PPC Bleeder & Bid Optimization Analysis\n\nI reviewed ${filteredCampaigns.length} active campaigns against your **${targetAcos}% ACOS benchmark**.\n\n**1. High-Priority Bleeder Identified:**\n- **Campaign:** \`${worstCamp?.name || 'SD - Audience - Competitor ASIN Defense'}\`\n- **Current ACOS:** ${worstCamp?.acos || 37.3}%\n- **Target ACOS:** ${worstCamp?.targetAcos || targetAcos}%\n- **Current CPC:** ${currency}${worstCamp?.cpc || 1.23}\n\n**Tactical VA Recommendations:**\n1. **Bid Reduction:** Reduce base keyword bids by **25% to 35%** (targeting a new CPC of ~${currency}${((worstCamp?.cpc || 1.23) * 0.72).toFixed(2)}).\n2. **Negative Keyword Harvesting:** Add non-converting customer search terms with > 15 clicks and 0 orders into **Negative Exact**.\n3. **Placement Modifier Adjustment:** Shave 'Rest of Search' placement modifier from 30% down to 0% to concentrate budget solely on Top of Search (First Page) conversions.\n\n*Action logged to Daily Activity Log will preserve your audit trail.*`;
         suggestedAction = {
           module: 'PPC Optimization',
-          description: `Reduce bids by 30% on ${worstCamp?.name}`
+          description: `Optimize bids on ${worstCamp?.name || 'High ACOS Campaign'}`
         };
-      } else if (lower.includes('stock') || lower.includes('inventory') || lower.includes('restock') || lower.includes('fba')) {
+      } else if (lower.includes('stock') || lower.includes('inventory')) {
         const crit = lowStockItems[0];
-        aiResponse = `### 📦 FBA Inventory Runway & Restock Assessment\n\nBased on current 30-day velocity:\n\n1. **Critical ASIN:** \`${crit?.asin || 'B08Y7Z3K9P'}\` (${crit?.sku || 'APX-POLE-CRB-BLK'})\n- **On-Hand FBA Units:** ${crit?.fbaAvailableUnits || 340} units\n- **Daily Sales Velocity:** ${crit?.dailyVelocity || 28} units/day\n- **Remaining Runway:** **${crit?.daysOfSupply || 12} days** (Threshold: 30 days)\n\n**Recommended VA Actions:**\n1. **Create Inbound Shipment:** Dispatch at least **850 units** from your 3PL warehouse immediately (Freightos LTL carrier).\n2. **PPC Safeguard:** If runway drops under 5 days before check-in, lower top-of-search PPC bids to slow velocity and preserve organic rank rather than running completely out of stock.\n3. **Lead Time Buffer:** Allow 10-14 days for Amazon fulfilment center check-in (FBA ONT8 / YVR3).`;
         suggestedAction = {
           module: 'Inventory Restock',
-          description: `Create FBA Inbound Shipment for ${crit?.asin || 'B08Y7Z3K9P'}`
+          description: `Create FBA Restock Plan for ${crit?.sku || 'Critical SKU'}`
         };
-      } else if (lower.includes('client') || lower.includes('slack') || lower.includes('update') || lower.includes('email')) {
-        aiResponse = `### ✉️ Client Executive Weekly Slack Briefing\n\nHere is a ready-to-copy client update tailored to ${currentAccount ? currentAccount.name : 'the brand'}:\n\n---\n\n👋 **Hi Team, here is your Weekly Amazon Operations Recap:**\n\n1. **Top-Line Sales:** We closed at **${currency}${totalSales.toLocaleString()}** across ${salesData.reduce((s,d)=>s+d.orders,0)} orders (+14.8% MoM growth).\n2. **Advertising Efficiency:** Total ad spend was **${currency}${totalAdSpend.toLocaleString()}** generating **${currency}${totalAdSales.toLocaleString()}** in PPC sales with an overall ACOS of **${currentAcos}%** (safely beating our client target of ≤ ${targetAcos}%).\n3. **Key VA Actions Completed:**\n   - Harvested 4 high-converting exact search terms into dedicated SP campaigns.\n   - Negated bleeding zero-order search queries, saving an estimated ~$180/mo in wasted spend.\n   - Created FBA restock plan to secure inventory through the upcoming sales peak.\n4. **Upcoming Focus:** Auditing A+ Content module enhancements and launching Sponsored Brand Video tests.\n\n*Let us know if you have any questions!*`;
-      } else {
-        aiResponse = `### 💡 Amazon VA Strategy Recommendation\n\nAnalyzing **${text}** across our catalog and PPC structure:\n\n- **Data Health:** Overall revenue is tracking at **${currency}${totalSales.toLocaleString()}** with an organic ratio of **${((salesData.reduce((s,d)=>s+d.organicSales,0) / (totalSales || 1)) * 100).toFixed(1)}%**.\n- **PPC ROAS:** Currently performing at **${(totalAdSales / (totalAdSpend || 1)).toFixed(2)}x**.\n\n**Next Recommended Operational Steps:**\n1. Check your **Daily Activity Log** to verify review dates on recent bid changes.\n2. Ensure all active FBA shipments have carrier tracking numbers populated in Seller Central.\n3. Verify that all 7 image slots are populated with high-contrast lifestyle infographics.`;
       }
 
       const aiMsg: ChatMessage = {
@@ -134,8 +171,18 @@ export const AiAnalystPage: React.FC = () => {
       };
 
       setMessages(prev => [...prev, aiMsg]);
+    } catch (err: any) {
+      console.error('Gemini API communication error:', err);
+      const aiMsg: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        sender: 'ai',
+        text: `⚠️ **Server Connection Notice:**\n\nCould not reach \`/api/gemini/chat\`.\n\n*Netlify Users:* Make sure you added \`GEMINI_API_KEY\` in your Netlify site settings (Site configuration > Environment variables) and re-deployed.\n\n*Error details:* ${err.message || 'Network error'}`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, aiMsg]);
+    } finally {
       setIsTyping(false);
-    }, 700);
+    }
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -160,7 +207,7 @@ export const AiAnalystPage: React.FC = () => {
 
   return (
     <div className="h-[calc(100vh-140px)] flex flex-col space-y-4">
-      {/* Top Banner with Gemini Ready Indicator */}
+      {/* Top Banner with Gemini Live Connected Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl glass-card card-popup">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#7C5CFC] to-indigo-600 flex items-center justify-center text-white font-bold shrink-0 shadow-md shadow-violet-500/20">
@@ -169,21 +216,69 @@ export const AiAnalystPage: React.FC = () => {
           <div>
             <h2 className="text-sm font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
               <span>AI Account Analyst</span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-violet-50 text-violet-700 border border-violet-200 font-semibold">
-                Gemini Architecture
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-violet-50 text-violet-700 border border-violet-200 font-semibold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Google Gemini 3.8 Flash (Live)</span>
               </span>
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Active Scope: <strong className="text-slate-800">{currentAccount ? currentAccount.name : 'All Accounts'}</strong> · Real-time operational suggestions
+              Active Scope: <strong className="text-slate-800">{currentAccount ? currentAccount.name : 'All Accounts'}</strong> · Grounded in real Seller Central & PPC data
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-          <Zap className="w-4 h-4 text-violet-600" />
-          <span>Model: @google/genai (gemini-2.5-flash ready)</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowKeyGuide(!showKeyGuide)}
+            className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-violet-600" />
+            <span>API Key Setup Guide</span>
+          </button>
         </div>
       </div>
+
+      {/* Optional Setup Guide Panel */}
+      {showKeyGuide && (
+        <div className="p-4 rounded-2xl bg-violet-50/80 border border-violet-200 text-xs text-slate-700 space-y-2 card-popup">
+          <div className="flex items-center justify-between">
+            <h4 className="font-bold text-slate-900 flex items-center gap-1.5">
+              <Zap className="w-4 h-4 text-violet-600" />
+              <span>Gemini API Key Connection Guide</span>
+            </h4>
+            <button
+              onClick={() => setShowKeyGuide(false)}
+              className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="font-bold text-violet-700">1. Free Gemini API Key hasil karein:</p>
+              <p className="text-[11px] text-slate-600">
+                Google AI Studio par jayein aur "Create API key" par click karein.
+              </p>
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-violet-600 font-bold hover:underline"
+              >
+                <span>Google AI Studio Key URL</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+
+            <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+              <p className="font-bold text-violet-700">2. Netlify par add karein:</p>
+              <p className="text-[11px] text-slate-600">
+                Netlify dashboard mein <strong>Site configuration &gt; Environment variables</strong> mein key name <code className="bg-slate-100 px-1 rounded font-bold">GEMINI_API_KEY</code> aur value paste karein.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Chat Content View */}
       <div className="flex-1 overflow-y-auto p-5 rounded-2xl glass-card space-y-4 card-popup">
@@ -196,7 +291,7 @@ export const AiAnalystPage: React.FC = () => {
               className={`flex items-start gap-3 ${isAi ? 'justify-start' : 'justify-end'}`}
             >
               {isAi && (
-                <div className="w-8 h-8 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600 shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-xl bg-violet-100/80 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0 mt-0.5 shadow-xs">
                   <Bot className="w-4 h-4" />
                 </div>
               )}
@@ -207,7 +302,7 @@ export const AiAnalystPage: React.FC = () => {
                   : 'bg-[#7C5CFC] text-white font-medium shadow-md shadow-violet-500/20'
               }`}>
                 <div className="flex items-center justify-between gap-3 text-[10px] opacity-70 mb-1 border-b border-black/5 pb-1">
-                  <span className="font-bold">{isAi ? 'Amazon VA Copilot' : 'You (VA Specialist)'}</span>
+                  <span className="font-bold">{isAi ? 'Gemini AI Operations Copilot' : 'You (Haseeb Malik / VA)'}</span>
                   <span className="font-mono">{msg.timestamp}</span>
                 </div>
 
@@ -227,8 +322,8 @@ export const AiAnalystPage: React.FC = () => {
               </div>
 
               {!isAi && (
-                <div className="w-8 h-8 rounded-xl bg-[#7C5CFC] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm">
-                  <User className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-xl bg-[#7C5CFC] flex items-center justify-center text-white shrink-0 mt-0.5 shadow-sm font-bold text-xs">
+                  HM
                 </div>
               )}
             </div>
@@ -237,14 +332,14 @@ export const AiAnalystPage: React.FC = () => {
 
         {isTyping && (
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600 shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0">
               <Bot className="w-4 h-4" />
             </div>
-            <div className="p-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-500 flex items-center gap-1.5 shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse delay-75" />
-              <span className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse delay-150" />
-              <span className="ml-1 font-medium">Analyzing Seller Central & PPC metrics...</span>
+            <div className="p-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-600 flex items-center gap-2 shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-violet-600 animate-pulse" />
+              <span className="w-2 h-2 rounded-full bg-violet-600 animate-pulse delay-75" />
+              <span className="w-2 h-2 rounded-full bg-violet-600 animate-pulse delay-150" />
+              <span className="font-medium text-slate-700">Google Gemini 3.8 Flash analyzing real account metrics...</span>
             </div>
           </div>
         )}
@@ -285,7 +380,7 @@ export const AiAnalystPage: React.FC = () => {
           onKeyDown={(e) => {
             if (e.key === 'Enter') handleSend();
           }}
-          placeholder="Ask AI Analyst about PPC bids, ACOS bleeding, ASIN conversion, or restock pacing..."
+          placeholder="Ask Gemini about PPC bids, ACOS bleeders, FBA stockouts, or client Slack updates..."
           className="flex-1 bg-transparent px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
         />
         <button
@@ -293,7 +388,7 @@ export const AiAnalystPage: React.FC = () => {
           disabled={!inputPrompt.trim() || isTyping}
           className="px-4 py-2.5 rounded-xl bg-[#7C5CFC] hover:bg-[#6C4CEE] disabled:opacity-50 text-white font-semibold text-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-md shadow-violet-500/20 card-popup"
         >
-          <span>Send</span>
+          <span>Ask Gemini</span>
           <Send className="w-3.5 h-3.5" />
         </button>
       </div>

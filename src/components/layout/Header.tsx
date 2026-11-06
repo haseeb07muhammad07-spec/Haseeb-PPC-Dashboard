@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewActivity }) => {
     setActivePage
   } = useApp();
 
-  const { currentUser, logout, login, hasPermission } = useAuth();
+  const { currentUser, logout, hasPermission } = useAuth();
 
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
@@ -337,47 +337,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewActivity }) => {
                 </div>
               </div>
 
-              <div className="px-4 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                Switch Role Mode (Test):
+              {/* Role Info */}
+              <div className="px-4 py-2 bg-slate-50 rounded-xl mx-2 text-[11px] text-slate-600">
+                <span className="font-semibold block text-slate-700">Account Access Level</span>
+                <span className="text-[10px] text-slate-500">
+                  {currentUser?.role === 'admin' 
+                    ? 'Owner with Full Administrative Privileges' 
+                    : currentUser?.role === 'editor' 
+                    ? 'VA Specialist (Bid & Activity Operations)' 
+                    : 'Client (Read-Only Performance Oversight)'}
+                </span>
               </div>
-              <button
-                onClick={() => {
-                  login(currentUser?.email || 'admin@test.com', 'pwd', 'admin');
-                  setIsProfileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-violet-50 cursor-pointer ${
-                  currentUser?.role === 'admin' ? 'text-violet-700 font-bold' : 'text-slate-700'
-                }`}
-              >
-                <span>Admin (Owner - Full Access)</span>
-                {currentUser?.role === 'admin' && <Check className="w-3.5 h-3.5" />}
-              </button>
-
-              <button
-                onClick={() => {
-                  login(currentUser?.email || 'va@test.com', 'pwd', 'editor');
-                  setIsProfileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-violet-50 cursor-pointer ${
-                  currentUser?.role === 'editor' ? 'text-violet-700 font-bold' : 'text-slate-700'
-                }`}
-              >
-                <span>Editor (VA - Edit Bids & Logs)</span>
-                {currentUser?.role === 'editor' && <Check className="w-3.5 h-3.5" />}
-              </button>
-
-              <button
-                onClick={() => {
-                  login(currentUser?.email || 'client@test.com', 'pwd', 'viewer');
-                  setIsProfileMenuOpen(false);
-                }}
-                className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-violet-50 cursor-pointer ${
-                  currentUser?.role === 'viewer' ? 'text-violet-700 font-bold' : 'text-slate-700'
-                }`}
-              >
-                <span>Viewer (Client - Read-Only)</span>
-                {currentUser?.role === 'viewer' && <Check className="w-3.5 h-3.5" />}
-              </button>
 
               <div className="h-px bg-slate-100 my-1" />
 

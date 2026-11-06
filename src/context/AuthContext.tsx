@@ -1,28 +1,40 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { UserSession, UserRole, TeamInvitation } from '../types';
+import { UserSession, UserRole, TeamInvitation, AccessRequest } from '../types';
+
+export interface LoginResult {
+  success: boolean;
+  status: 'SUCCESS' | 'PENDING_APPROVAL' | 'REJECTED' | 'UNAUTHORIZED';
+  message: string;
+}
 
 interface AuthContextType {
   currentUser: UserSession | null;
   isAuthenticated: boolean;
   teamMembers: UserSession[];
   invitations: TeamInvitation[];
+  accessRequests: AccessRequest[];
   pendingInvite: TeamInvitation | null;
   
   // Actions
-  login: (email: string, password?: string, overrideRole?: UserRole) => boolean;
+  login: (email: string, password?: string) => LoginResult;
   logout: () => void;
   createInvitation: (email: string, role: UserRole, assignedAccounts: string[] | 'all') => TeamInvitation;
   acceptInvitation: (token: string, name: string, password?: string) => boolean;
   revokeInvitation: (id: string) => void;
   deleteTeamMember: (id: string) => void;
   markInviteEmailSent: (id: string, method: 'gmail' | 'mailto' | 'copied') => void;
+  requestAccess: (name: string, email: string, message?: string) => { success: boolean; message: string };
+  approveAccessRequest: (requestId: string, role: UserRole, assignedAccounts: string[] | 'all') => boolean;
+  rejectAccessRequest: (requestId: string) => void;
+  deleteAccessRequest: (requestId: string) => void;
   hasPermission: (action: 'view' | 'edit' | 'delete' | 'admin') => boolean;
 }
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'amz_va_auth_user_v2',
   TEAM_MEMBERS: 'amz_va_team_members_v2',
-  INVITATIONS: 'amz_va_invitations_v2'
+  INVITATIONS: 'amz_va_invitations_v2',
+  ACCESS_REQUESTS: 'amz_va_access_requests_v2'
 };
 
 const DEFAULT_USERS: UserSession[] = [
@@ -128,6 +140,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return DEFAULT_INVITATIONS;
   });
 
+  // Access Requests list
+  const [accessRequests, setAccessRequests] = useState<AccessRequest[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.ACCESS_REQUESTS);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return [];
+  });
+
   // Logged-in session: defaults to null on fresh visits so Login Portal is strictly enforced
   const [currentUser, setCurrentUser] = useState<UserSession | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
@@ -137,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null; // Require login / invite entry on fresh visits
   });
 
-  // Pending invitation if opened via link
+  // Pending invitation if opened via link ?invite=token
   const [pendingInvite, setPendingInvite] = useState<TeamInvitation | null>(null);
 
   // Check URL query parameters for ?invite=token
@@ -153,6 +174,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
   }, [invitations]);
+
+  // Sync across tabs via window storage event
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEYS.TEAM_MEMBERS && e.newValue) {
+        try { setTeamMembers(JSON.parse(e.newValue)); } catch (err) { console.error(err); }
+      }
+      if (e.key === STORAGE_KEYS.INVITATIONS && e.newValue) {
+        try { setInvitations(JSON.parse(e.newValue)); } catch (err) { console.error(err); }
+      }
+      if (e.key === STORAGE_KEYS.ACCESS_REQUESTS && e.newValue) {
+        try { setAccessRequests(JSON.parse(e.newValue)); } catch (err) { console.error(err); }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Persistence
   useEffect(() => {
@@ -171,17 +209,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(STORAGE_KEYS.INVITATIONS, JSON.stringify(invitations));
   }, [invitations]);
 
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.ACCESS_REQUESTS, JSON.stringify(accessRequests));
+  }, [accessRequests]);
+
   // Login handler with strict security
-  const login = (email: string, password?: string): boolean => {
+  const login = (email: string, _password?: string): LoginResult => {
     const trimmedEmail = email.trim().toLowerCase();
     
-    // Check if user exists in authorized team/client list
-    let user = teamMembers.find(u => u.email.toLowerCase() === trimmedEmail);
-
-    // If it's the admin email, allow login
+    // Check if it's the Admin email (Haseeb Malik)
     if (trimmedEmail === 'haseeb07malik07@gmail.com') {
-      if (!user) {
-        user = {
+      let adminUser = teamMembers.find(u => u.email.toLowerCase() === trimmedEmail);
+      if (!adminUser) {
+        adminUser = {
           id: 'usr-admin-1',
           name: 'Haseeb Malik',
           email: 'haseeb07malik07@gmail.com',
@@ -191,41 +231,191 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           avatarInitials: 'HM',
           createdAt: '2026-01-01'
         };
-        setTeamMembers(prev => [user!, ...prev]);
+        setTeamMembers(prev => [adminUser!, ...prev]);
       }
-      setCurrentUser(user);
-      return true;
+      setCurrentUser(adminUser);
+      return {
+        success: true,
+        status: 'SUCCESS',
+        message: 'Welcome back, Haseeb Malik!'
+      };
     }
 
-    // For any other email, they MUST be an authorized team member or have an accepted invite
-    if (!user) {
-      // Check if they have an accepted invitation
-      const invite = invitations.find(i => i.email.toLowerCase() === trimmedEmail && i.status === 'ACCEPTED');
-      if (invite) {
-        user = {
-          id: `usr-${Date.now()}`,
-          name: invite.email.split('@')[0],
-          email: invite.email,
-          role: invite.role,
-          roleLabel: invite.roleLabel,
-          accessibleAccountIds: invite.assignedAccounts,
-          avatarInitials: invite.email.slice(0, 2).toUpperCase(),
-          createdAt: new Date().toISOString().split('T')[0]
+    // Check if user exists in authorized team/client list
+    const authorizedUser = teamMembers.find(u => u.email.toLowerCase() === trimmedEmail);
+    if (authorizedUser) {
+      setCurrentUser(authorizedUser);
+      return {
+        success: true,
+        status: 'SUCCESS',
+        message: `Welcome back, ${authorizedUser.name}!`
+      };
+    }
+
+    // Check if user has an accepted invitation waiting for first entry
+    const acceptedInvite = invitations.find(i => i.email.toLowerCase() === trimmedEmail && i.status === 'ACCEPTED');
+    if (acceptedInvite) {
+      const newUser: UserSession = {
+        id: `usr-${Date.now()}`,
+        name: acceptedInvite.email.split('@')[0],
+        email: acceptedInvite.email,
+        role: acceptedInvite.role,
+        roleLabel: acceptedInvite.roleLabel,
+        accessibleAccountIds: acceptedInvite.assignedAccounts,
+        avatarInitials: acceptedInvite.email.slice(0, 2).toUpperCase(),
+        createdAt: new Date().toISOString().split('T')[0]
+      };
+      setTeamMembers(prev => [...prev, newUser]);
+      setCurrentUser(newUser);
+      return {
+        success: true,
+        status: 'SUCCESS',
+        message: `Welcome, ${newUser.name}!`
+      };
+    }
+
+    // Check if user has an access request in the queue
+    const userRequest = accessRequests.find(r => r.email.toLowerCase() === trimmedEmail);
+    if (userRequest) {
+      if (userRequest.status === 'PENDING') {
+        return {
+          success: false,
+          status: 'PENDING_APPROVAL',
+          message: 'Aapki access request Haseeb Malik ko send ho chuki hai aur abhi PENDING hai. Haseeb Malik jab ise approve karengay, tab aap login kar sakengay.'
         };
-        setTeamMembers(prev => [...prev, user!]);
-        setCurrentUser(user);
-        return true;
       }
-      // Not authorized!
-      return false;
+      if (userRequest.status === 'REJECTED') {
+        return {
+          success: false,
+          status: 'REJECTED',
+          message: 'Aapki access request decline kardi gayi hai. Mazeed maloomat ke liye Haseeb Malik se rabta karein.'
+        };
+      }
     }
 
-    setCurrentUser(user);
-    return true;
+    // Not authorized and no pending request
+    return {
+      success: false,
+      status: 'UNAUTHORIZED',
+      message: 'Access Denied: Is email ko Haseeb Malik ki taraf se invite ya approve nahi kiya gaya. Agar aap access chahte hain toh neeche "Request Access from Haseeb" par click karein.'
+    };
   };
 
   const logout = () => {
     setCurrentUser(null);
+  };
+
+  // Submit an Access Request (When an uninvited user tries to join)
+  const requestAccess = (name: string, email: string, message?: string): { success: boolean; message: string } => {
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedName = name.trim();
+
+    if (!trimmedEmail || !trimmedName) {
+      return { success: false, message: 'Please provide both your name and email.' };
+    }
+
+    // Check if already in team
+    if (teamMembers.some(m => m.email.toLowerCase() === trimmedEmail)) {
+      return { success: false, message: 'Yeh email pehle se authorized hai! Aap seedha login kar sakte hain.' };
+    }
+
+    // Check if already requested
+    const existing = accessRequests.find(r => r.email.toLowerCase() === trimmedEmail);
+    if (existing && existing.status === 'PENDING') {
+      return { 
+        success: true, 
+        message: 'Aapki request pehle se Haseeb Malik ke paas pending hai. Haseeb Malik ke approval ka intezar karein.' 
+      };
+    }
+
+    const newRequest: AccessRequest = {
+      id: `req-${Date.now()}`,
+      name: trimmedName,
+      email: trimmedEmail,
+      message: message?.trim() || '',
+      status: 'PENDING',
+      requestedAt: new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    };
+
+    setAccessRequests(prev => [newRequest, ...prev.filter(r => r.email.toLowerCase() !== trimmedEmail)]);
+    return {
+      success: true,
+      message: 'Aapki access request Haseeb Malik ko bhej di gayi hai! Jaise hi Haseeb approve karengay, aap login kar payengay.'
+    };
+  };
+
+  // Approve an Access Request (Haseeb clicks Approve & assigns role/accounts)
+  const approveAccessRequest = (
+    requestId: string, 
+    role: UserRole, 
+    assignedAccounts: string[] | 'all'
+  ): boolean => {
+    const req = accessRequests.find(r => r.id === requestId);
+    if (!req) return false;
+
+    const initials = req.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
+    const roleLabel = role === 'admin' 
+      ? 'Agency Owner (Full Admin)' 
+      : role === 'editor' 
+      ? 'VA Specialist (Editor - Operations)' 
+      : 'Client Store Owner (Viewer - Read-Only)';
+
+    const newUser: UserSession = {
+      id: `usr-${Date.now()}`,
+      name: req.name,
+      email: req.email,
+      role,
+      roleLabel,
+      accessibleAccountIds: assignedAccounts,
+      avatarInitials: initials,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    // Add to active team members
+    setTeamMembers(prev => [...prev.filter(m => m.email.toLowerCase() !== req.email.toLowerCase()), newUser]);
+
+    // Update request status to APPROVED
+    setAccessRequests(prev => prev.map(r => r.id === requestId ? {
+      ...r,
+      status: 'APPROVED',
+      assignedRole: role,
+      assignedAccounts,
+      decisionAt: new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } : r));
+
+    return true;
+  };
+
+  // Reject an Access Request
+  const rejectAccessRequest = (requestId: string) => {
+    setAccessRequests(prev => prev.map(r => r.id === requestId ? {
+      ...r,
+      status: 'REJECTED',
+      decisionAt: new Date().toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    } : r));
+  };
+
+  // Delete an Access Request from history
+  const deleteAccessRequest = (requestId: string) => {
+    setAccessRequests(prev => prev.filter(r => r.id !== requestId));
   };
 
   // Create an Invitation Link
@@ -242,18 +432,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const roleLabel = role === 'admin' 
       ? 'Agency Owner (Full Admin)' 
       : role === 'editor' 
-      ? 'VA Specialist (Editor - Can change bids & activities)' 
+      ? 'VA Specialist (Editor - Operations)' 
       : 'Client Store Owner (Viewer - Read-Only)';
 
     const newInvite: TeamInvitation = {
       id: `inv-${Date.now()}`,
-      email: email.trim(),
+      email: email.trim().toLowerCase(),
       role,
       roleLabel,
       status: 'PENDING',
       inviteToken: token,
       inviteLink,
-      invitedBy: currentUser?.name || 'Admin',
+      invitedBy: currentUser?.name || 'Haseeb Malik',
       assignedAccounts,
       createdAt: new Date().toISOString().split('T')[0],
       expiresAt: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]
@@ -268,12 +458,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const invite = invitations.find(i => i.inviteToken === token);
     if (!invite || invite.status !== 'PENDING') return false;
 
-    // Create user profile
+    // Create user profile strictly with the invited email
     const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'U';
     const newUser: UserSession = {
       id: `usr-${Date.now()}`,
       name: name.trim(),
-      email: invite.email,
+      email: invite.email.toLowerCase(),
       role: invite.role,
       roleLabel: invite.roleLabel,
       accessibleAccountIds: invite.assignedAccounts,
@@ -283,11 +473,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Mark invitation as accepted
     setInvitations(prev => prev.map(inv => inv.id === invite.id ? { ...inv, status: 'ACCEPTED' } : inv));
-    setTeamMembers(prev => [...prev.filter(m => m.email !== newUser.email), newUser]);
+    setTeamMembers(prev => [...prev.filter(m => m.email.toLowerCase() !== newUser.email.toLowerCase()), newUser]);
     setCurrentUser(newUser);
     setPendingInvite(null);
 
-    // Clean up query param
+    // Clean up query param from browser URL
     if (typeof window !== 'undefined' && window.history.replaceState) {
       const url = new URL(window.location.href);
       url.searchParams.delete('invite');
@@ -335,6 +525,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isAuthenticated: !!currentUser,
       teamMembers,
       invitations,
+      accessRequests,
       pendingInvite,
       login,
       logout,
@@ -343,6 +534,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       revokeInvitation,
       markInviteEmailSent,
       deleteTeamMember,
+      requestAccess,
+      approveAccessRequest,
+      rejectAccessRequest,
+      deleteAccessRequest,
       hasPermission
     }}>
       {children}
