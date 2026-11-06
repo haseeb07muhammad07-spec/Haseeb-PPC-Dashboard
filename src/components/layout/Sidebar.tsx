@@ -14,7 +14,8 @@ import {
   Settings, 
   ChevronLeft, 
   ChevronRight,
-  UserPlus
+  UserPlus,
+  Link2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -40,6 +41,7 @@ export const Sidebar: React.FC = () => {
     { id: 'overview', label: 'Overview', icon: LayoutDashboard },
     { id: 'asin-tracker', label: 'ASIN Priority', icon: Crosshair, badge: 'Hero', badgeColor: 'bg-violet-100 text-violet-700' },
     { id: 'accounts', label: 'Client Accounts', icon: Store, badge: accounts.length },
+    { id: 'connect-amazon', label: 'Connect Amazon', icon: Link2, badge: 'SP-API', badgeColor: 'bg-emerald-100 text-emerald-800' },
     { id: 'activity-log', label: 'Activity Log', icon: ClipboardList, badge: filteredActivities.length },
     { id: 'ppc-management', label: 'PPC Management', icon: Target },
     { id: 'sales-analytics', label: 'Sales Analytics', icon: LineChart },

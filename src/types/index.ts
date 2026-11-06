@@ -29,6 +29,17 @@ export interface AmazonAccount {
   assignedVa: string;
   status: 'active' | 'paused' | 'onboarding';
   notes?: string;
+  spApiConfig?: {
+    sellerId?: string;
+    marketplaceId?: string;
+    clientId?: string;
+    clientSecret?: string;
+    refreshToken?: string;
+    adsProfileId?: string;
+    isConnected?: boolean;
+    lastSyncedAt?: string;
+    syncStatus?: 'connected' | 'syncing' | 'error' | 'disconnected';
+  };
   createdAt: string;
 }
 

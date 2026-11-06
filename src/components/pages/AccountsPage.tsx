@@ -11,7 +11,8 @@ import {
   Check, 
   Globe, 
   TrendingUp,
-  Layers
+  Layers,
+  Link2
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
@@ -37,6 +38,7 @@ export const AccountsPage: React.FC = () => {
     accounts, 
     activeAccountId, 
     setActiveAccountId, 
+    setActivePage,
     addAccount, 
     updateAccount, 
     deleteAccount 
@@ -161,6 +163,13 @@ export const AccountsPage: React.FC = () => {
             }`}
           >
             View All Accounts (Aggregated)
+          </button>
+          <button
+            onClick={() => setActivePage('connect-amazon')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs transition-all cursor-pointer shadow-xs card-popup"
+          >
+            <Link2 className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Connect Seller Central (SP-API)</span>
           </button>
           <button
             onClick={handleOpenAdd}

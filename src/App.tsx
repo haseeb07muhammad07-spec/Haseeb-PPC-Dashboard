@@ -22,6 +22,7 @@ import { GoalsTargetsPage } from './components/pages/GoalsTargetsPage';
 import { ReportsPage } from './components/pages/ReportsPage';
 import { AiAnalystPage } from './components/pages/AiAnalystPage';
 import { TeamInvitationsPage } from './components/pages/TeamInvitationsPage';
+import { ConnectAmazonPage } from './components/pages/ConnectAmazonPage';
 import { SettingsPage } from './components/pages/SettingsPage';
 import { ActivityFormModal } from './components/activities/ActivityFormModal';
 import { ActivityRecord } from './types';
@@ -90,6 +91,8 @@ function MainLayout() {
         return <AiAnalystPage />;
       case 'team-invites':
         return <TeamInvitationsPage />;
+      case 'connect-amazon':
+        return <ConnectAmazonPage />;
       case 'settings':
         return <SettingsPage />;
       default:
