@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      // Browser extension compatibility shim for window.fetch
+      try {
+        var _origFetch = window.fetch ? window.fetch.bind(window) : undefined;
+        var _currentFetch = _origFetch;
+        Object.defineProperty(window, 'fetch', {
+          configurable: true,
+          enumerable: true,
+          get: function() { return _currentFetch; },
+          set: function(val) { _currentFetch = val; }
+        });
+      } catch (err) {}
+
+      // Prevent third-party browser extensions from crashing or reporting errors to app
+      window.addEventListener('error', function(event) {
+        if (event && event.filename && event.filename.indexOf('chrome-extension://') !== -1) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          return true;
+        }
+      }, true);
+    </script>
+    <title>Amazon VA Command Center</title>
+    <meta name="description" content="Multi-account Amazon Seller Central and PPC operations management command dashboard for virtual assistants and agency managers." />
+    <meta property="og:title" content="Amazon VA Command Center" />
+    <meta property="og:description" content="Multi-account Amazon Seller Central and PPC operations management command dashboard for virtual assistants and agency managers." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-[#f5f3f9] text-slate-800 antialiased selection:bg-violet-500/20 selection:text-violet-900 min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

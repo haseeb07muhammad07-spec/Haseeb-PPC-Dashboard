@@ -1,0 +1,6 @@
+{
+  "name": "Amazon VA Command Center",
+  "description": "Multi-account Amazon Seller Central and PPC operations management command dashboard for virtual assistants and agency managers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
