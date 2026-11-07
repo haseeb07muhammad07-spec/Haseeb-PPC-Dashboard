@@ -418,13 +418,13 @@ export const ConnectAmazonPage: React.FC = () => {
 
                   <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     <a
-                      href="https://sellercentral.amazon.de/developer/central"
+                      href="https://sellercentral.amazon.de/apps/manage"
                       target="_blank"
                       rel="noreferrer"
                       className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer card-popup"
                     >
                       <Key className="w-3.5 h-3.5 text-amber-400" />
-                      <span>Open Developer Central (Self-Authorize)</span>
+                      <span>Open Manage Your Apps (Official Amazon)</span>
                     </a>
                     <button
                       type="button"
