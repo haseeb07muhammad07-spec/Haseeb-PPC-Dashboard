@@ -139,6 +139,40 @@ export interface PpcCampaign {
   bidsAdjustedAt?: string;
 }
 
+export interface MinedSearchTerm {
+  id: string;
+  accountId: string;
+  searchQuery: string;
+  sourceCampaignId: string;
+  sourceCampaignName: string;
+  sourceTargeting: 'AUTO' | 'BROAD' | 'PHRASE';
+  targetAsin: string;
+  clicks: number;
+  impressions: number;
+  spend: number;
+  sales: number;
+  orders: number;
+  cpc: number;
+  cvr: number;
+  acos: number;
+  classification: 'OPPORTUNITY' | 'BLEEDER' | 'NEUTRAL';
+  alreadyInExact: boolean;
+  existingExactCampaignName?: string;
+  harvested?: boolean;
+  negated?: boolean;
+}
+
+export interface DaypartingSlot {
+  day: number; // 0 = Sunday, 1 = Mon ... 6 = Sat
+  hour: number; // 0 to 23
+  bidMultiplier: number; // percent adjustment e.g. +20, -40
+  cvrAvg: number;
+  ordersCount: number;
+  spendEst: number;
+  isPeak: boolean;
+  isLow: boolean;
+}
+
 export interface InventoryItem {
   id: string;
   accountId: string;

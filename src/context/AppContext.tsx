@@ -10,7 +10,9 @@ import {
   TaskItem, 
   PerformanceAlert,
   DailySalesData,
-  DateFilterOption
+  DateFilterOption,
+  MinedSearchTerm,
+  DaypartingSlot
 } from '../types';
 import { 
   INITIAL_ACCOUNTS, 
@@ -21,7 +23,9 @@ import {
   INITIAL_LISTING_HEALTH, 
   INITIAL_TASKS, 
   INITIAL_ALERTS, 
-  GENERATE_DAILY_SALES 
+  GENERATE_DAILY_SALES,
+  INITIAL_MINED_SEARCH_TERMS,
+  GENERATE_DAYPARTING_GRID
 } from '../data/demoData';
 
 interface AppContextType {
@@ -63,6 +67,17 @@ interface AppContextType {
   filteredListingHealth: ListingHealthItem[];
   filteredTasks: TaskItem[];
   filteredAlerts: PerformanceAlert[];
+  minedSearchTerms: MinedSearchTerm[];
+  filteredSearchTerms: MinedSearchTerm[];
+  daypartingSlots: DaypartingSlot[];
+
+  // Search Term Mining & Harvester Operations
+  harvestSearchTerm: (id: string, targetExactCampaignName: string, recommendedBid: number, addNegativeExactToSource: boolean) => void;
+  negateSearchTerm: (id: string) => void;
+
+  // Dayparting & Schedule Operations
+  updateDaypartingSlot: (day: number, hour: number, multiplier: number) => void;
+  applyDaypartingPreset: (preset: 'smart' | 'aggressive' | 'saver' | 'reset') => void;
 
   // ASIN Operations
   updateAsinPriority: (id: string, tier: AsinPriorityTier) => void;
@@ -101,7 +116,9 @@ const STORAGE_KEYS = {
   TASKS: 'amz_va_tasks_v4',
   ALERTS: 'amz_va_alerts_v4',
   ACTIVE_ACC: 'amz_va_active_acc_v4',
-  DATE_FILTER: 'amz_va_date_filter_v4'
+  DATE_FILTER: 'amz_va_date_filter_v4',
+  SEARCH_TERMS: 'amz_va_search_terms_v4',
+  DAYPARTING: 'amz_va_dayparting_v4'
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -195,7 +212,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return INITIAL_ALERTS;
   });
 
+  // Mined Search Terms
+  const [minedSearchTerms, setMinedSearchTerms] = useState<MinedSearchTerm[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.SEARCH_TERMS);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return INITIAL_MINED_SEARCH_TERMS;
+  });
+
+  // Dayparting 7x24 Matrix
+  const [daypartingSlots, setDaypartingSlots] = useState<DaypartingSlot[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEYS.DAYPARTING);
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { console.error(e); }
+    }
+    return GENERATE_DAYPARTING_GRID();
+  });
+
   // Persistence effects
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.SEARCH_TERMS, JSON.stringify(minedSearchTerms));
+  }, [minedSearchTerms]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.DAYPARTING, JSON.stringify(daypartingSlots));
+  }, [daypartingSlots]);
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
   }, [accounts]);
@@ -270,6 +312,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const filteredAlerts = activeAccountId === 'all'
     ? alerts.filter(a => !a.isResolved)
     : alerts.filter(a => a.accountId === activeAccountId && !a.isResolved);
+
+  const filteredSearchTerms = activeAccountId === 'all'
+    ? minedSearchTerms
+    : minedSearchTerms.filter(st => st.accountId === activeAccountId);
 
   // Raw 30 day sales series: returns [] if no accounts exist
   const raw30DaySalesData = accounts.length === 0
@@ -407,6 +453,125 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, isResolved: true } : a));
   };
 
+  // Search Term Mining & Harvester Operations
+  const harvestSearchTerm = (
+    id: string, 
+    targetExactCampaignName: string, 
+    recommendedBid: number, 
+    addNegativeExactToSource: boolean
+  ) => {
+    const term = minedSearchTerms.find(t => t.id === id);
+    if (!term) return;
+
+    setMinedSearchTerms(prev => prev.map(t => t.id === id ? { ...t, harvested: true, alreadyInExact: true, existingExactCampaignName: targetExactCampaignName } : t));
+
+    const targetAccount = accounts.find(a => a.id === term.accountId) || accounts[0];
+    const currency = targetAccount?.currency || '€';
+
+    addActivity({
+      accountId: term.accountId,
+      accountName: targetAccount?.name || 'Account',
+      activityDate: new Date().toISOString().split('T')[0],
+      module: 'PPC Optimization',
+      actionTaken: `Harvested search query "${term.searchQuery}" into Exact campaign "${targetExactCampaignName}" with initial bid ${currency}${recommendedBid.toFixed(2)}`,
+      reference: `Source: ${term.sourceCampaignName} -> Exact Target: ${targetExactCampaignName}`,
+      previousValue: `Auto/Broad CPC: ${currency}${term.cpc.toFixed(2)} | ACOS: ${term.acos}%`,
+      newValue: `Manual Exact CPC: ${currency}${recommendedBid.toFixed(2)} [Targeting Isolated]`,
+      reasonForAction: `High-converting search term (${term.orders} orders, ${currency}${term.sales} sales) graduated from discovery to dedicated Exact match.`,
+      expectedOutcome: `Lower CPC and lock in top of search ranking for keyword with zero bid inflation.`,
+      reviewDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      status: 'Completed',
+      vaName: targetAccount?.assignedVa || 'Haseeb Malik (PPC Lead)'
+    });
+
+    if (addNegativeExactToSource) {
+      addActivity({
+        accountId: term.accountId,
+        accountName: targetAccount?.name || 'Account',
+        activityDate: new Date().toISOString().split('T')[0],
+        module: 'Negative Keywords',
+        actionTaken: `Added Negative Exact query "${term.searchQuery}" to source campaign "${term.sourceCampaignName}"`,
+        reference: `Isolation: ${term.sourceCampaignName}`,
+        previousValue: 'Bidding enabled in discovery campaign',
+        newValue: 'Negative Exact isolation active',
+        reasonForAction: 'Search Term Isolation to prevent auto campaign from competing with new manual exact target.',
+        expectedOutcome: 'Zero internal bid cannibalization between auto and exact.',
+        reviewDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+        status: 'Completed',
+        vaName: targetAccount?.assignedVa || 'Haseeb Malik (PPC Lead)'
+      });
+    }
+  };
+
+  const negateSearchTerm = (id: string) => {
+    const term = minedSearchTerms.find(t => t.id === id);
+    if (!term) return;
+
+    setMinedSearchTerms(prev => prev.map(t => t.id === id ? { ...t, negated: true } : t));
+
+    const targetAccount = accounts.find(a => a.id === term.accountId) || accounts[0];
+    const currency = targetAccount?.currency || '€';
+
+    addActivity({
+      accountId: term.accountId,
+      accountName: targetAccount?.name || 'Account',
+      activityDate: new Date().toISOString().split('T')[0],
+      module: 'Negative Keywords',
+      actionTaken: `Negated Bleeder search query [Exact Match]: "${term.searchQuery}" in "${term.sourceCampaignName}"`,
+      reference: `${term.sourceCampaignName} · Query: "${term.searchQuery}"`,
+      previousValue: `${term.clicks} clicks | ${currency}${term.spend.toFixed(2)} spend | 0 orders`,
+      newValue: 'Added as Negative Exact',
+      reasonForAction: `Zero-order bleeder query exceeded spend threshold (${currency}${term.spend.toFixed(2)} wasted with 0 conversions).`,
+      expectedOutcome: `Save estimated ~${currency}${(term.spend * 1.5).toFixed(0)}/month in wasted PPC ad budget.`,
+      reviewDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      status: 'Completed',
+      vaName: targetAccount?.assignedVa || 'Haseeb Malik (PPC Lead)'
+    });
+  };
+
+  const updateDaypartingSlot = (day: number, hour: number, multiplier: number) => {
+    setDaypartingSlots(prev => prev.map(s => (s.day === day && s.hour === hour) ? { ...s, bidMultiplier: multiplier } : s));
+  };
+
+  const applyDaypartingPreset = (preset: 'smart' | 'aggressive' | 'saver' | 'reset') => {
+    setDaypartingSlots(prev => prev.map(s => {
+      let mod = 0;
+      if (preset === 'smart') {
+        if (s.isPeak) mod = s.day === 0 ? 30 : 25;
+        else if (s.isLow) mod = -40;
+        else if (s.hour >= 12 && s.hour <= 13) mod = 10;
+      } else if (preset === 'aggressive') {
+        if (s.isPeak) mod = 35;
+        else if (s.isLow) mod = -20;
+        else mod = 10;
+      } else if (preset === 'saver') {
+        if (s.isPeak) mod = 10;
+        else if (s.isLow) mod = -50;
+        else mod = -15;
+      } else {
+        mod = 0;
+      }
+      return { ...s, bidMultiplier: mod };
+    }));
+
+    const targetAccount = currentAccount || accounts[0];
+    addActivity({
+      accountId: targetAccount?.id || 'acc-tomishop',
+      accountName: targetAccount?.name || 'Account',
+      activityDate: new Date().toISOString().split('T')[0],
+      module: 'PPC Optimization',
+      actionTaken: `Updated 7-Day Dayparting schedule preset to "${preset.toUpperCase()}"`,
+      reference: 'Store-Wide Dayparting Engine',
+      previousValue: 'Custom Schedule',
+      newValue: `${preset.toUpperCase()} Schedule active`,
+      reasonForAction: 'Optimizing hourly bid allocation based on conversion rate windows.',
+      expectedOutcome: 'Eliminate wasted spend during 01:00-06:00 and maximize Buy Box rank during peak evening hours.',
+      reviewDate: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      status: 'Completed',
+      vaName: targetAccount?.assignedVa || 'Haseeb Malik (PPC Lead)'
+    });
+  };
+
   // Clear all accounts and data for fresh workspace
   const clearAllData = () => {
     Object.values(STORAGE_KEYS).forEach(k => localStorage.removeItem(k));
@@ -461,6 +626,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       filteredListingHealth,
       filteredTasks,
       filteredAlerts,
+      minedSearchTerms,
+      filteredSearchTerms,
+      daypartingSlots,
+      harvestSearchTerm,
+      negateSearchTerm,
+      updateDaypartingSlot,
+      applyDaypartingPreset,
       updateAsinPriority,
       toggleAsinFocusGoal,
       updateAsinTargets,

@@ -7,7 +7,9 @@ import {
   ListingHealthItem, 
   TaskItem, 
   PerformanceAlert,
-  DailySalesData 
+  DailySalesData,
+  MinedSearchTerm,
+  DaypartingSlot
 } from '../types';
 
 // Real Client Accounts provided by Haseeb:
@@ -771,4 +773,278 @@ export const GENERATE_DAILY_SALES = (accountId?: string, account?: AmazonAccount
       cpc
     };
   });
+};
+
+export const INITIAL_MINED_SEARCH_TERMS: MinedSearchTerm[] = [
+  // --- OPPORTUNITIES (Auto / Broad / Phrase that converted well) ---
+  {
+    id: 'st-1',
+    accountId: 'acc-tomishop',
+    searchQuery: 'kühlschrank organizer kunststoff set',
+    sourceCampaignId: 'cmp-tomi-2',
+    sourceCampaignName: 'SP - Auto - Catch-All Discovery DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE98X710',
+    clicks: 64,
+    impressions: 4820,
+    spend: 33.28,
+    sales: 275.50,
+    orders: 14,
+    cpc: 0.52,
+    cvr: 21.8,
+    acos: 12.1,
+    classification: 'OPPORTUNITY',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-2',
+    accountId: 'acc-tomishop',
+    searchQuery: 'kuechen organizer schublade trenner',
+    sourceCampaignId: 'cmp-tomi-2',
+    sourceCampaignName: 'SP - Auto - Catch-All Discovery DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE98X710',
+    clicks: 82,
+    impressions: 6100,
+    spend: 49.20,
+    sales: 399.00,
+    orders: 19,
+    cpc: 0.60,
+    cvr: 23.2,
+    acos: 12.3,
+    classification: 'OPPORTUNITY',
+    alreadyInExact: true,
+    existingExactCampaignName: 'SP - Manual - Exact - Kuechen Organizer Core'
+  },
+  {
+    id: 'st-3',
+    accountId: 'acc-tomishop',
+    searchQuery: 'gewürzregal stehend küche schmal',
+    sourceCampaignId: 'cmp-tomi-2',
+    sourceCampaignName: 'SP - Auto - Catch-All Discovery DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE44L922',
+    clicks: 45,
+    impressions: 3950,
+    spend: 34.20,
+    sales: 145.00,
+    orders: 8,
+    cpc: 0.76,
+    cvr: 17.8,
+    acos: 23.6, // Slightly above 22% target, but moving to exact with 0.60 bid makes it highly profitable
+    classification: 'OPPORTUNITY',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-4',
+    accountId: 'acc-tomishop',
+    searchQuery: 'abwaschbecken organizer edelstahl abtropfgitter',
+    sourceCampaignId: 'cmp-tomi-2',
+    sourceCampaignName: 'SP - Auto - Catch-All Discovery DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE98X710',
+    clicks: 38,
+    impressions: 2890,
+    spend: 26.60,
+    sales: 189.00,
+    orders: 9,
+    cpc: 0.70,
+    cvr: 23.7,
+    acos: 14.1,
+    classification: 'OPPORTUNITY',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-5',
+    accountId: 'acc-baihaas',
+    searchQuery: 'schwarzkümmelöl kaltgepresst bio 500ml glasflasche',
+    sourceCampaignId: 'cmp-bai-2',
+    sourceCampaignName: 'SP - Auto - Cold Pressed Seed Oils',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE88SK01',
+    clicks: 72,
+    impressions: 5400,
+    spend: 44.64,
+    sales: 348.00,
+    orders: 16,
+    cpc: 0.62,
+    cvr: 22.2,
+    acos: 12.8,
+    classification: 'OPPORTUNITY',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-6',
+    accountId: 'acc-optim',
+    searchQuery: 'curcuma gélules haut dosage articulation',
+    sourceCampaignId: 'cmp-opt-1',
+    sourceCampaignName: 'SP - Auto - Discovery Compléments FR',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0FR99CUR01',
+    clicks: 58,
+    impressions: 4200,
+    spend: 49.30,
+    sales: 328.90,
+    orders: 11,
+    cpc: 0.85,
+    cvr: 19.0,
+    acos: 15.0,
+    classification: 'OPPORTUNITY',
+    alreadyInExact: false
+  },
+
+  // --- ZERO-ORDER BLEEDERS (High clicks, wasted spend, 0 orders) ---
+  {
+    id: 'st-7',
+    accountId: 'acc-tomishop',
+    searchQuery: 'cheap silicone plastic food containers bulk discount',
+    sourceCampaignId: 'cmp-tomi-2',
+    sourceCampaignName: 'SP - Auto - Catch-All Discovery DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE98X710',
+    clicks: 39,
+    impressions: 3420,
+    spend: 25.35,
+    sales: 0,
+    orders: 0,
+    cpc: 0.65,
+    cvr: 0,
+    acos: 999,
+    classification: 'BLEEDER',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-8',
+    accountId: 'acc-tomishop',
+    searchQuery: 'free kitchen samples giveaway germany',
+    sourceCampaignId: 'cmp-tomi-2',
+    sourceCampaignName: 'SP - Auto - Catch-All Discovery DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE98X710',
+    clicks: 31,
+    impressions: 2980,
+    spend: 20.15,
+    sales: 0,
+    orders: 0,
+    cpc: 0.65,
+    cvr: 0,
+    acos: 999,
+    classification: 'BLEEDER',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-9',
+    accountId: 'acc-tomishop',
+    searchQuery: 'used plastic drawer second hand ebay',
+    sourceCampaignId: 'cmp-tomi-2',
+    sourceCampaignName: 'SP - Auto - Catch-All Discovery DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE98X710',
+    clicks: 26,
+    impressions: 2150,
+    spend: 18.20,
+    sales: 0,
+    orders: 0,
+    cpc: 0.70,
+    cvr: 0,
+    acos: 999,
+    classification: 'BLEEDER',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-10',
+    accountId: 'acc-baihaas',
+    searchQuery: 'schwarzkümmelöl rossmann preisvergleich',
+    sourceCampaignId: 'cmp-bai-2',
+    sourceCampaignName: 'SP - Auto - Cold Pressed Seed Oils',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE88SK01',
+    clicks: 28,
+    impressions: 2450,
+    spend: 23.80,
+    sales: 0,
+    orders: 0,
+    cpc: 0.85,
+    cvr: 0,
+    acos: 999,
+    classification: 'BLEEDER',
+    alreadyInExact: false
+  },
+  {
+    id: 'st-11',
+    accountId: 'acc-equic',
+    searchQuery: 'reitsport bürste kostenlos bestellen',
+    sourceCampaignId: 'cmp-equic-1',
+    sourceCampaignName: 'SP - Auto - Catch-All Reitsport DE',
+    sourceTargeting: 'AUTO',
+    targetAsin: 'B0DE66EQ01',
+    clicks: 22,
+    impressions: 1980,
+    spend: 17.60,
+    sales: 0,
+    orders: 0,
+    cpc: 0.80,
+    cvr: 0,
+    acos: 999,
+    classification: 'BLEEDER',
+    alreadyInExact: false
+  }
+];
+
+export const GENERATE_DAYPARTING_GRID = (): DaypartingSlot[] => {
+  const slots: DaypartingSlot[] = [];
+  // 7 days: 0 (Sun), 1 (Mon), 2 (Tue), 3 (Wed), 4 (Thu), 5 (Fri), 6 (Sat)
+  for (let day = 0; day < 7; day++) {
+    for (let hour = 0; hour < 24; hour++) {
+      let isPeak = false;
+      let isLow = false;
+      let bidMultiplier = 0;
+      let cvrAvg = 12.0;
+      let ordersCount = 3;
+      let spendEst = 12.0;
+
+      // Peak hours: 18:00 - 23:00 (Evening prime buying window)
+      if (hour >= 18 && hour <= 23) {
+        isPeak = true;
+        bidMultiplier = day === 0 ? 30 : 25; // Super prime on Sunday evening
+        cvrAvg = +(19.5 + Math.sin(hour + day) * 3.5).toFixed(1);
+        ordersCount = Math.round(9 + Math.sin(hour) * 4);
+        spendEst = +(24.0 + Math.sin(hour) * 8).toFixed(1);
+      } 
+      // Off-peak / Sleep hours: 01:00 - 06:00
+      else if (hour >= 1 && hour <= 6) {
+        isLow = true;
+        bidMultiplier = -40; // Recommended reduction during dead clicks
+        cvrAvg = +(3.2 + Math.cos(hour) * 1.5).toFixed(1);
+        ordersCount = Math.round(1 + Math.sin(hour) * 0.5);
+        spendEst = +(6.5 + Math.cos(hour) * 2).toFixed(1);
+      } 
+      // Lunch micro-peak: 12:00 - 13:00
+      else if (hour >= 12 && hour <= 13) {
+        bidMultiplier = 10;
+        cvrAvg = +(15.0 + Math.sin(day) * 2).toFixed(1);
+        ordersCount = 6;
+        spendEst = 16.5;
+      } 
+      // Daytime standard hours: 07:00 - 17:00
+      else {
+        bidMultiplier = 0;
+        cvrAvg = +(11.5 + Math.sin(hour) * 2).toFixed(1);
+        ordersCount = Math.round(3 + Math.sin(hour) * 2);
+        spendEst = +(12.0 + Math.sin(hour) * 3).toFixed(1);
+      }
+
+      slots.push({
+        day,
+        hour,
+        bidMultiplier,
+        cvrAvg,
+        ordersCount,
+        spendEst,
+        isPeak,
+        isLow
+      });
+    }
+  }
+  return slots;
 };

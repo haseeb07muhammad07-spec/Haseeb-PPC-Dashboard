@@ -49,19 +49,8 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewActivity }) => {
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isCustomDateOpen, setIsCustomDateOpen] = useState(false);
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
-
-  const navTabs = [
-    { id: 'overview', label: 'Dashboard' },
-    { id: 'accounts', label: 'Accounts' },
-    { id: 'ppc-management', label: 'PPC Manager' },
-    { id: 'asin-tracker', label: 'ASIN Matrix' },
-    { id: 'inventory', label: 'Inventory (FBA)' },
-    { id: 'listing-health', label: 'Listing Health' },
-    { id: 'activity-log', label: 'Activities' },
-    { id: 'ai-analyst', label: 'AI Analyst' },
-    { id: 'team-invites', label: 'Team' },
-  ];
 
   const dateOptions: { id: DateFilterOption; label: string }[] = [
     { id: 'today', label: 'Today' },
@@ -73,28 +62,29 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewActivity }) => {
   ];
 
   return (
-    <header className="h-20 bg-white/75 backdrop-blur-2xl border-b border-slate-200/80 px-4 md:px-8 flex items-center justify-between gap-4 sticky top-0 z-30 shadow-[0_4px_20px_rgba(112,100,160,0.03)]">
+    <header className="h-16 md:h-20 bg-white/80 backdrop-blur-2xl border-b border-slate-200/80 px-3 sm:px-6 md:px-8 flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-30 shadow-[0_4px_20px_rgba(112,100,160,0.03)] shrink-0">
       {/* Left: Modern Logo & Store Selector */}
-      <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
         <div className="relative">
           <button
             onClick={() => {
               setIsAccountDropdownOpen(!isAccountDropdownOpen);
               setIsAlertsOpen(false);
               setIsCustomDateOpen(false);
+              setIsDateDropdownOpen(false);
               setIsProfileMenuOpen(false);
             }}
-            className="card-popup flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-white/90 border border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.03)] text-xs cursor-pointer group"
+            className="card-popup flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white/90 border border-slate-200/80 shadow-[0_2px_8px_rgba(0,0,0,0.03)] text-xs cursor-pointer group shrink-0"
           >
-            <div className="w-6 h-6 rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-bold text-[10px] shrink-0">
+            <div className="w-6 h-6 rounded-lg sm:rounded-xl bg-violet-100 border border-violet-200 flex items-center justify-center text-violet-700 font-bold text-[10px] shrink-0">
               {accounts.length === 0 ? '+' : (activeAccountId === 'all' ? 'ALL' : currentAccount?.countryCode || 'EU')}
             </div>
             
-            <div className="text-left">
-              <span className="font-bold text-slate-800 tracking-tight block max-w-[140px] md:max-w-[190px] truncate group-hover:text-violet-600 transition-colors">
+            <div className="text-left min-w-0">
+              <span className="font-bold text-slate-800 tracking-tight block max-w-[100px] sm:max-w-[140px] md:max-w-[180px] lg:max-w-[220px] truncate group-hover:text-violet-600 transition-colors">
                 {accounts.length === 0 ? 'No Accounts' : (activeAccountId === 'all' ? 'All Accounts Rollup' : currentAccount?.name)}
               </span>
-              <span className="text-[10px] text-slate-500 block -mt-0.5 truncate max-w-[140px] md:max-w-[190px]">
+              <span className="text-[10px] text-slate-500 block -mt-0.5 max-w-[100px] sm:max-w-[140px] md:max-w-[180px] lg:max-w-[220px] truncate">
                 {accounts.length === 0 ? 'Click to add store' : (activeAccountId === 'all' ? `${accounts.length} Client Stores (EU)` : `${currentAccount?.clientName ? `${currentAccount.clientName} · ` : ''}${currentAccount?.marketplace || 'Amazon'}`)}
               </span>
             </div>
@@ -104,7 +94,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewActivity }) => {
 
           {/* Account Switching Dropdown */}
           {isAccountDropdownOpen && (
-            <div className="absolute left-0 mt-2 w-80 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-2xl py-2 z-50 overflow-hidden text-xs">
+            <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-2xl py-2 z-50 overflow-hidden text-xs">
               <div className="px-4 py-2 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
                 <span>Switch Amazon Client Store</span>
                 <span className="text-violet-600 font-mono font-semibold">{accounts.length} connected</span>
@@ -178,73 +168,128 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewActivity }) => {
         </div>
       </div>
 
-      {/* Center: Segmented Navigation Pills (Matching screenshot) */}
-      <div className="hidden xl:flex items-center gap-1 p-1.5 bg-slate-100/80 rounded-full border border-slate-200/60 shadow-inner">
-        {navTabs.map(tab => {
-          const isActive = activePage === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActivePage(tab.id)}
-              className={`card-popup px-4 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer ${
-                isActive
-                  ? 'bg-white text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.06)] border border-slate-200/50'
-                  : 'text-slate-500 hover:text-slate-900'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* Center: Live Sync & Status Badge (Clean & spacious, visible on ultra-wide screens) */}
+      <div className="hidden 2xl:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100/70 border border-slate-200/60 text-xs font-medium text-slate-600">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="font-semibold text-slate-800">Amazon SP-API Gateway</span>
+        <span className="text-slate-400">·</span>
+        <span className="text-[11px] text-slate-500">Live Real-time Sync Active</span>
       </div>
 
-      {/* Right: Date Filter, Alerts, User Profile, New Activity CTA */}
-      <div className="flex items-center gap-2.5">
-        {/* Date Filter Segmented Bar */}
-        <div className="hidden md:flex items-center gap-1 p-1 bg-slate-100/90 border border-slate-200/70 rounded-full text-xs">
-          {dateOptions.map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => {
-                setDateFilter(opt.id);
-                if (opt.id === 'custom') {
-                  setIsCustomDateOpen(true);
-                } else {
-                  setIsCustomDateOpen(false);
-                }
-              }}
-              className={`px-3 py-1 rounded-full font-sans text-xs transition-all cursor-pointer whitespace-nowrap ${
-                dateFilter === opt.id
-                  ? 'bg-white text-violet-700 font-bold shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Custom Date Range Popover */}
-        {isCustomDateOpen && (
-          <div className="absolute top-20 right-48 bg-white border border-slate-200 rounded-2xl shadow-2xl p-4 z-50 text-xs space-y-2">
-            <span className="font-bold text-slate-800 block text-xs">Select Custom Date Range</span>
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-mono text-xs"
-              />
-              <span className="text-slate-400">to</span>
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-mono text-xs"
-              />
-            </div>
+      {/* Right: Date Filter, Alerts, User Profile */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Date Filter Container with Responsive Behavior */}
+        <div className="relative">
+          {/* Wide Desktop: Segmented Pills (>= 1280px) */}
+          <div className="hidden xl:flex items-center gap-1 p-1 bg-slate-100/90 border border-slate-200/70 rounded-full text-xs">
+            {dateOptions.map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => {
+                  setDateFilter(opt.id);
+                  if (opt.id === 'custom') {
+                    setIsCustomDateOpen(!isCustomDateOpen);
+                  } else {
+                    setIsCustomDateOpen(false);
+                  }
+                  setIsDateDropdownOpen(false);
+                }}
+                className={`px-3 py-1 rounded-full font-sans text-xs transition-all cursor-pointer whitespace-nowrap ${
+                  dateFilter === opt.id
+                    ? 'bg-white text-violet-700 font-bold shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
-        )}
+
+          {/* Compact / Zoomed screens: Smart Dropdown (< 1280px) */}
+          <button
+            onClick={() => {
+              setIsDateDropdownOpen(!isDateDropdownOpen);
+              setIsAccountDropdownOpen(false);
+              setIsAlertsOpen(false);
+              setIsProfileMenuOpen(false);
+            }}
+            className="xl:hidden card-popup flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl bg-white/90 border border-slate-200/80 shadow-sm text-xs font-semibold text-slate-700 hover:text-violet-600 cursor-pointer shrink-0"
+            title="Filter by date range"
+          >
+            <Calendar className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+            <span className="font-bold text-violet-700 uppercase text-[11px] sm:text-xs">
+              {dateFilter === 'custom' ? 'Custom' : dateOptions.find(o => o.id === dateFilter)?.label || dateFilter}
+            </span>
+            <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+          </button>
+
+          {/* Compact Date Dropdown Menu */}
+          {isDateDropdownOpen && (
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white/95 backdrop-blur-2xl border border-slate-200 rounded-2xl shadow-2xl py-1.5 z-50 text-xs">
+              <div className="px-3.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex items-center justify-between">
+                <span>Date Range</span>
+                <Calendar className="w-3 h-3 text-violet-500" />
+              </div>
+              <div className="py-1">
+                {dateOptions.map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => {
+                      setDateFilter(opt.id);
+                      setIsDateDropdownOpen(false);
+                      if (opt.id === 'custom') {
+                        setIsCustomDateOpen(true);
+                      } else {
+                        setIsCustomDateOpen(false);
+                      }
+                    }}
+                    className={`w-full text-left px-3.5 py-2 flex items-center justify-between transition-colors cursor-pointer ${
+                      dateFilter === opt.id ? 'bg-violet-50 text-violet-700 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{opt.label}</span>
+                    {dateFilter === opt.id && <Check className="w-3.5 h-3.5 text-violet-600" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Custom Date Range Popover - Anchored Directly Below Date Button */}
+          {isCustomDateOpen && (
+            <div className="absolute right-0 top-full mt-2 w-72 bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-2xl shadow-2xl p-4 z-50 text-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="font-bold text-slate-800 text-xs">Select Custom Date Range</span>
+                <button
+                  onClick={() => setIsCustomDateOpen(false)}
+                  className="text-[10px] text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+              <div className="space-y-2.5">
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-500 block mb-1">From Date</label>
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-mono text-xs focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-slate-500 block mb-1">To Date</label>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-mono text-xs focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Alerts Notification Button */}
         <div className="relative">
@@ -306,6 +351,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewActivity }) => {
               setIsAccountDropdownOpen(false);
               setIsAlertsOpen(false);
               setIsCustomDateOpen(false);
+              setIsDateDropdownOpen(false);
             }}
             className="card-popup flex items-center gap-2 p-1.5 pl-2 pr-3 rounded-full bg-white/90 border border-slate-200/80 shadow-sm text-xs cursor-pointer"
             title="User Profile & Role"

@@ -13,15 +13,19 @@ import {
   CheckCircle2,
   Package,
   Layers,
-  Sparkles
+  Sparkles,
+  Clock
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { PpcCampaign, CampaignTargeting } from '../../types';
 import { Modal } from '../common/Modal';
+import { SearchTermHarvester } from '../ppc/SearchTermHarvester';
+import { PpcDaypartingHeatmap } from '../ppc/PpcDaypartingHeatmap';
 
 export const PpcManagementPage: React.FC = () => {
   const { 
     filteredCampaigns, 
+    filteredSearchTerms,
     accounts, 
     activeAccountId, 
     currentAccount, 
@@ -29,6 +33,7 @@ export const PpcManagementPage: React.FC = () => {
     addActivity 
   } = useApp();
 
+  const [activePpcView, setActivePpcView] = useState<'campaigns' | 'harvester' | 'dayparting'>('campaigns');
   const [searchQuery, setSearchQuery] = useState('');
   const [targetingFilter, setTargetingFilter] = useState<'all' | 'AUTO' | 'MANUAL'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -199,7 +204,62 @@ export const PpcManagementPage: React.FC = () => {
         </button>
       </div>
 
-      {/* AUTO vs MANUAL Campaign Segmentation Strip */}
+      {/* PPC Sub-Module Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
+        <button
+          onClick={() => setActivePpcView('campaigns')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activePpcView === 'campaigns'
+              ? 'bg-violet-600 text-white shadow-md shadow-violet-500/20'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
+          }`}
+        >
+          <Target className="w-4 h-4" />
+          <span>Campaigns & Bid Matrix</span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono ${
+            activePpcView === 'campaigns' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+          }`}>
+            {filteredCampaigns.length}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActivePpcView('harvester')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activePpcView === 'harvester'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-emerald-500" />
+          <span>Search Term Mining & Harvester</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            {filteredSearchTerms.filter(t => t.classification === 'OPPORTUNITY' && !t.alreadyInExact && !t.harvested).length} Opportunities
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActivePpcView('dayparting')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activePpcView === 'dayparting'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+              : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
+          }`}
+        >
+          <Clock className="w-4 h-4 text-indigo-500" />
+          <span>24/7 Dayparting & Hourly Heatmap</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-violet-100 text-violet-800 border border-violet-200">
+            Peak Scheduler
+          </span>
+        </button>
+      </div>
+
+      {activePpcView === 'harvester' && <SearchTermHarvester />}
+      {activePpcView === 'dayparting' && <PpcDaypartingHeatmap />}
+
+      {activePpcView === 'campaigns' && (
+        <>
+          {/* AUTO vs MANUAL Campaign Segmentation Strip */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Total PPC Operations */}
         <div className="card-popup glass-card p-6 rounded-3xl border border-white/95 space-y-3 cursor-pointer">
@@ -463,6 +523,8 @@ export const PpcManagementPage: React.FC = () => {
           </table>
         </div>
       </div>
+      </>
+      )}
 
       {/* Bid / Budget Adjustment Modal */}
       {adjustingCampaign && (

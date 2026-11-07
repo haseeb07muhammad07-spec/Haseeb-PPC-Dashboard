@@ -43,7 +43,7 @@ export const Sidebar: React.FC = () => {
     { id: 'accounts', label: 'Client Accounts', icon: Store, badge: accounts.length },
     { id: 'connect-amazon', label: 'Connect Amazon', icon: Link2, badge: 'SP-API', badgeColor: 'bg-emerald-100 text-emerald-800' },
     { id: 'activity-log', label: 'Activity Log', icon: ClipboardList, badge: filteredActivities.length },
-    { id: 'ppc-management', label: 'PPC Management', icon: Target },
+    { id: 'ppc-management', label: 'PPC Management', icon: Target, badge: 'Harvest', badgeColor: 'bg-emerald-100 text-emerald-800' },
     { id: 'sales-analytics', label: 'Sales Analytics', icon: LineChart },
     { id: 'inventory', label: 'Inventory (FBA)', icon: Package },
     { id: 'listing-health', label: 'Listing Health', icon: ShieldCheck },
