@@ -417,6 +417,15 @@ export const ConnectAmazonPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <a
+                      href="https://sellercentral.amazon.de/developer/central"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer card-popup"
+                    >
+                      <Key className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Open Developer Central (Self-Authorize)</span>
+                    </a>
                     <button
                       type="button"
                       onClick={handleOpenAmazonOAuth}
@@ -434,6 +443,27 @@ export const ConnectAmazonPage: React.FC = () => {
                       <RefreshCw className={`w-4 h-4 ${isRealtimeSyncing ? 'animate-spin' : ''}`} />
                       <span>{isRealtimeSyncing ? 'Pulling Data...' : 'Sync Real-Time Now'}</span>
                     </button>
+                  </div>
+                </div>
+
+                {/* Developer App ID Quick Field */}
+                <div className="p-3 bg-white/95 rounded-xl border border-amber-200 text-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <span className="text-amber-500 font-bold">⚠️ Amazon Blank Screen Solution:</span>
+                    </span>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Amazon ka consent screen tabhi khulta hai jab aapke paas Seller Central mein registered <strong>App ID</strong> ho. Agar app nahi bani hui to Amazon blank screen show karta hai. Developer Central mein ja kar 1-click self-authorize karein ya apni App ID yahan paste karein:
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <input
+                      type="text"
+                      placeholder="amzn1.sp.solution... ya amzn1.application..."
+                      value={clientId}
+                      onChange={(e) => setClientId(e.target.value)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-mono text-slate-900 w-56 focus:outline-none focus:border-violet-500"
+                    />
                   </div>
                 </div>
 

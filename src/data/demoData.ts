@@ -80,9 +80,9 @@ export const INITIAL_ACCOUNTS: AmazonAccount[] = [
   },
   {
     id: 'acc-equic',
-    name: 'EquicProducts (DE)',
+    name: 'EquikProducts (DE)',
     clientName: 'Ruben',
-    brandName: 'EquicProducts',
+    brandName: 'EquikProducts',
     marketplace: 'Amazon.de',
     marketplacesList: ['DE'],
     country: 'Germany',
@@ -95,7 +95,7 @@ export const INITIAL_ACCOUNTS: AmazonAccount[] = [
     asinCount: 6,
     assignedVa: 'Haseeb Malik (PPC Lead)',
     status: 'active',
-    notes: 'Client: Ruben. German marketplace Amazon.de equestrian and specialized products.',
+    notes: 'Client: Ruben. German marketplace Amazon.de storefront (EquikProducts).',
     createdAt: '2026-02-15'
   }
 ];
